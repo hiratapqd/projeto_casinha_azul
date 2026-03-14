@@ -25,7 +25,6 @@ exports.criarVoluntario = async (req, res) => {
             mediunidade: dados.mediunidade,
             esta_ativo: "Sim",
             disponibilidade: {
-                // Aqui garantimos que pegamos o array enviado pelo Fetch
                 apometria: dados.disp_apometria || [],
                 reiki: dados.disp_reiki || [],
                 auriculo: dados.disp_auriculo || [],
@@ -51,12 +50,22 @@ exports.criarVoluntario = async (req, res) => {
 
 exports.getVisualizarVoluntarios = async (req, res) => {
     try {
-        const filtros = { dia: req.query.dia || '', terapia: req.query.terapia || '' };
-        const voluntarios = await Voluntario.find().sort({ nome: 1 });
+        const { dia, terapia } = req.query; // Captura os dados da URL
+        let filtro = {};
+
+        if (dia && terapia) {
+            // Ajusta o filtro para buscar dentro do objeto de disponibilidade
+            filtro[`disponibilidade.${terapia}`] = dia;
+        }
+
+        const voluntarios = await Voluntario.find(filtro).sort({ nome: 1 });
         
-        // Enviamos 'filtros' para o EJS não dar erro de "not defined"
-        res.render('visualizar_voluntarios', { voluntarios, filtros });
+        res.render('visualizar_voluntarios', { 
+            voluntarios, 
+            filtros: { dia, terapia } 
+        });
     } catch (err) {
-        res.status(500).send("Erro ao carregar lista.");
+        console.error(err);
+        res.status(500).send("Erro ao filtrar voluntários");
     }
 };
