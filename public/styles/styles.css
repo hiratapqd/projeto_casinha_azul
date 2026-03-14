@@ -361,3 +361,17 @@ th {
 .btn-atender:hover {
     background: #0d5a8f;
 }
+textarea {
+    width: 100%; 
+    min-height: 150px; /* Altura mínima (mais alta) */
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    resize: vertical; /* Permite que o usuário aumente a altura, mas não a largura */
+}
+
+/* Se quiser uma caixa ainda maior para observações específicas */
+.campo-grande {
+    min-height: 250px; /* Bem mais alta */
+}

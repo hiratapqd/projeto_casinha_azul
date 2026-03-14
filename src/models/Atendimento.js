@@ -7,7 +7,6 @@ const AtendimentoSchema = new mongoose.Schema({
     voluntario: { type: String, required: true },
     observacoes: { type: String },
     tipo: { type: String, required: true },
-    status: { type: String, default: 'Pendente' }, 
     prioridade: { type: Number } 
 }, { 
     collection: 'atendimentos'

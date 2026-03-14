@@ -5,9 +5,13 @@ const dashboardController = require('../controllers/DashboardController');
 const assistidoController = require('../controllers/AssistidoController');
 const voluntarioController = require('../controllers/VoluntarioController');
 const solicitacaoController = require('../controllers/SolicitacaoController');
+const atendimentoController = require('../controllers/AtendimentoController');
 
 // --- ROTA PRINCIPAL (DASHBOARD) ---
 router.get('/', dashboardController.getDashboard);
+
+// API para carregar o histórico no CPF (usada pelo script do formulário)
+router.get('/api/historico/:tipo/:cpf', atendimentoController.getHistoricoPorCPF);
 
 // --- ROTAS DE CADASTRO (VIEW) ---
 // router.get('/cadastro', assistidoController.renderFormCadastro); // GET para ver o form
@@ -24,6 +28,9 @@ router.get('/visualizar_voluntarios', voluntarioController.getVisualizarVoluntar
 // --- ROTAS DE ATENDIMENTO ---
 router.get('/solicitacao_atendimento', (req, res) => res.render('solicitacao_atendimento'));
 router.post('/atendimento/solicitacao', solicitacaoController.criarSolicitacaoComCadastro);
+router.post('/atendimento/salvar', atendimentoController.salvarAtendimento);
+
+
 
 // --- ROTA DE VISUALIZAÇÃO ---
 router.get('/visualizar_voluntarios', (req, res) => res.render('visualizar_voluntarios'));
