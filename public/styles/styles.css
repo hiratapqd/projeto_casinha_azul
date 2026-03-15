@@ -375,3 +375,11 @@ textarea {
 .campo-grande {
     min-height: 250px; /* Bem mais alta */
 }
+.badge-tratamento {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: capitalize;
+        display: inline-block;
+    }

@@ -6,6 +6,7 @@ const assistidoController = require('../controllers/AssistidoController');
 const voluntarioController = require('../controllers/VoluntarioController');
 const solicitacaoController = require('../controllers/SolicitacaoController');
 const atendimentoController = require('../controllers/AtendimentoController');
+const relatorioController = require('../controllers/RelatorioController');
 
 // --- ROTA PRINCIPAL (DASHBOARD) ---
 router.get('/', dashboardController.getDashboard);
@@ -32,8 +33,6 @@ router.get('/solicitacao_atendimento', (req, res) => res.render('solicitacao_ate
 router.post('/atendimento/solicitacao', solicitacaoController.criarSolicitacaoComCadastro);
 router.post('/atendimento/salvar', atendimentoController.salvarAtendimento);
 
-
-
 // --- ROTA DE VISUALIZAÇÃO ---
 router.get('/visualizar_voluntarios', (req, res) => res.render('visualizar_voluntarios'));
 
@@ -45,5 +44,10 @@ router.get('/atendimento/maos_sem_fronteiras', (req, res) => res.render('atendim
 router.get('/atendimento/homeopatico', (req, res) => res.render('atendimento/homeopatico'));
 router.get('/atendimento/passe', (req, res) => res.render('atendimento/passe'));
 router.get('/atendimento/historico/:cpf', solicitacaoController.buscarHistorico);
+
+// ROTAS DE RELATÓRIOS
+router.get('/relatorios/atendimentos-hoje', relatorioController.getAtendimentosHoje);
+router.get('/relatorios/todos-assistidos', relatorioController.getRelatorioGeralAssistidos);
+router.get('/relatorios/apometria-inativos', relatorioController.getApometriaInativos);
 
 module.exports = router;

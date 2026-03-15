@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="/styles/styles.css">
+<%- include('../partials/header') %>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Apometria — Assistidos Inativos</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .container { max-width: 1100px; margin: 20px auto; }
+    .cards { display:flex; gap:12px; flex-wrap:wrap; margin: 12px 0 18px; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:14px 16px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .card h3 { margin:0; font-size: 14px; color:#333; }
+    .card .num { font-size: 34px; font-weight:700; margin-top:8px; }
+    .tabs { display:flex; gap:8px; margin: 14px 0; flex-wrap:wrap; }
+    .tab { padding:8px 12px; border:1px solid #ddd; border-radius:10px; cursor:pointer; background:#fafafa; }
+    .tab.active { border-color:#1d6fd8; background:#eaf2ff; }
+    table { width:100%; border-collapse:collapse; margin-top: 10px; }
+    th, td { border:1px solid #ddd; padding:10px; text-align:left; }
+    th { background:#f8f9fa; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    input { padding:8px; }
+    .muted { color:#777; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Assistidos que fizeram Apometria e estão sem atendimento</h2>
+    <div class="muted">Critério: teve pelo menos 1 apometria e não teve nenhum atendimento (qualquer tipo) nos últimos X dias.</div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Sem atendimento há 30+ dias</h3>
+        <div class="num"><%= counts.d30 %></div>
+      </div>
+      <div class="card">
+        <h3>Sem atendimento há 60+ dias</h3>
+        <div class="num"><%= counts.d60 %></div>
+      </div>
+      <div class="card">
+        <h3>Sem atendimento há 90+ dias</h3>
+        <div class="num"><%= counts.d90 %></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab" data-k="d30">Lista 30+ dias</div>
+      <div class="tab active" data-k="d60">Lista 60+ dias</div>
+      <div class="tab" data-k="d90">Lista 90+ dias</div>
+    </div>
+
+    <div class="row">
+      <label>Buscar:</label>
+      <input type="text" id="q" placeholder="nome, cpf, telefone..." />
+      <span class="muted">Mostrando: <strong id="qt">0</strong></span>
+    </div>
+
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>CPF</th>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th>Email</th>
+          <th>Último atendimento</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const listas = <%- JSON.stringify(listas) %>;
+    const tbody = document.querySelector("#tbl tbody");
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const q = document.getElementById("q");
+    const qt = document.getElementById("qt");
+
+    function fmtData(d) {
+      try { return new Date(d).toLocaleString("pt-BR"); } catch { return ""; }
+    }
+
+    let currentKey = "d60";
+
+    function render() {
+      const term = q.value.trim().toLowerCase();
+      const arr = (listas[currentKey] || []);
+
+      tbody.innerHTML = "";
+      let count = 0;
+
+      arr.forEach(a => {
+        const line = `${a.cpf} ${a.nome} ${a.telefone} ${a.email}`.toLowerCase();
+        if (term && !line.includes(term)) return;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${a.cpf || ""}</td>
+          <td>${a.nome || ""}</td>
+          <td>${a.telefone || ""}</td>
+          <td>${a.email || ""}</td>
+          <td>${a.ultimaData ? fmtData(a.ultimaData) : ""}</td>
+        `;
+        tbody.appendChild(tr);
+        count++;
+      });
+
+      qt.textContent = count;
+      if (count === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="5" class="muted">Nenhum registro encontrado.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    tabs.forEach(t => {
+      t.addEventListener("click", () => {
+        tabs.forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        currentKey = t.dataset.k;
+        q.value = "";
+        render();
+      });
+    });
+
+    q.addEventListener("input", render);
+
+    render();
+  </script>
+</body>
+</html>
+<%- include('../partials/footer') %>

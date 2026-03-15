@@ -1,0 +1,130 @@
+<html>
+    <link rel="stylesheet" href="/styles/styles.css">
+    <%- include('../partials/header') %>
+
+  <style>
+    .container { max-width: 1100px; margin: 20px auto; font-family: Arial, sans-serif; }
+    .tabs { display:flex; gap:8px; margin: 14px 0; flex-wrap:wrap; }
+    .tab { padding:8px 12px; border:1px solid #ddd; border-radius:10px; cursor:pointer; background:#fafafa; }
+    .tab.active { border-color:#1d6fd8; background:#eaf2ff; }
+    table { width:100%; border-collapse:collapse; margin-top: 10px; }
+    th, td { border:1px solid #ddd; padding:10px; text-align:left; }
+    th { background:#f8f9fa; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    input { padding:8px; }
+    .muted { color:#777; }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; margin-left:6px; }
+  </style>
+
+  <head>
+    <title>Atendimentos de Hoje</title>
+  </head>
+  <body>
+
+      <div class="container">
+    <h2>Atendimentos de Hoje</h2>
+    <div class="muted">Use os botões para filtrar por terapia.</div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tipo="__todos">
+        Todos <span class="pill"><%= (atendimentos || []).length %></span>
+      </div>
+
+      <% (terapias || []).forEach(t => { %>
+        <div class="tab" data-tipo="<%= t.slug %>">
+          <%= t.nome %>
+          <span class="pill"><%= (counts && counts[t.slug]) ? counts[t.slug] : 0 %></span>
+        </div>
+      <% }) %>
+    </div>
+
+    <div class="row">
+      <label>Buscar:</label>
+      <input type="text" id="q" placeholder="cpf, nome, voluntário..." />
+      <span class="muted">Mostrando: <strong id="qt">0</strong></span>
+    </div>
+
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Data/Hora</th>
+          <th>Tipo</th>
+          <th>CPF</th>
+          <th>Nome</th>
+          <th>Voluntário</th>
+          <th>Observações</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    // const atendimentos = <%- JSON.stringify(atendimentos || []) %>;
+    const atendimentos = <%- JSON.stringify(atendimentos) %>;
+    let tipoAtual = "__todos";
+
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const tbody = document.querySelector("#tbl tbody");
+    const q = document.getElementById("q");
+    const qt = document.getElementById("qt");
+
+    function fmt(d) {
+      try { return new Date(d).toLocaleString("pt-BR"); } catch { return ""; }
+    }
+
+    function render() {
+      const term = q.value.trim().toLowerCase();
+      tbody.innerHTML = "";
+      let count = 0;
+
+      atendimentos.forEach(a => {
+        if (tipoAtual !== "__todos" && a.tipo !== tipoAtual) return;
+
+        const nome = a.nome_assistido || "";
+        const cpf = a.cpf_assistido || "";
+        const voluntario = a.voluntario || "";
+        const obs = a.observacoes || "";
+
+        const line = `${cpf} ${nome} ${voluntario} ${obs}`.toLowerCase();
+        if (term && !line.includes(term)) return;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${a.data ? fmt(a.data) : ""}</td>
+          <td>${a.tipo || ""}</td>
+          <td>${cpf}</td>
+          <td>${nome}</td>
+          <td>${voluntario}</td>
+          <td>${obs}</td>
+        `;
+        tbody.appendChild(tr);
+        count++;
+      });
+
+      qt.textContent = count;
+
+      if (count === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="6" class="muted">Nenhum atendimento encontrado para o filtro.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    tabs.forEach(t => {
+      t.addEventListener("click", () => {
+        tabs.forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        tipoAtual = t.dataset.tipo;
+        q.value = "";
+        render();
+      });
+    });
+
+    q.addEventListener("input", render);
+
+    render();
+  </script>
+  </body>
+</html>
+<%- include('../partials/footer') %>
