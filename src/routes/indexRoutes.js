@@ -7,6 +7,7 @@ const voluntarioController = require('../controllers/VoluntarioController');
 const solicitacaoController = require('../controllers/SolicitacaoController');
 const atendimentoController = require('../controllers/AtendimentoController');
 const relatorioController = require('../controllers/RelatorioController');
+const livrariaController = require('../controllers/LivrariaController');
 
 // --- ROTA PRINCIPAL (DASHBOARD) ---
 router.get('/', dashboardController.getDashboard);
@@ -49,5 +50,14 @@ router.get('/atendimento/historico/:cpf', solicitacaoController.buscarHistorico)
 router.get('/relatorios/atendimentos-hoje', relatorioController.getAtendimentosHoje);
 router.get('/relatorios/todos-assistidos', relatorioController.getRelatorioGeralAssistidos);
 router.get('/relatorios/apometria-inativos', relatorioController.getApometriaInativos);
+
+// --- ROTAS DA LIVRARIA ---
+router.get('/livraria/cadastro', livrariaController.getCadastroLivro);
+router.post('/livraria/salvar', livrariaController.salvarLivro);
+router.get('/livraria/estoque', livrariaController.getEstoque);
+router.post('/livraria/venda', livrariaController.registrarVenda);
+router.get('/livraria/editar/:id', livrariaController.getEditarLivro);
+router.post('/livraria/atualizar/:id', livrariaController.atualizarLivro);
+router.post('/livraria/venda-rapida', livrariaController.registrarVendaRapida);
 
 module.exports = router;

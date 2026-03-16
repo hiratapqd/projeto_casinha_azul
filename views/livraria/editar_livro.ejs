@@ -1,0 +1,113 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/styles/styles.css">
+<div class="container">
+    <div class="hero" style="padding: 20px 0;">
+        <h1>Cadastrar Novo Livro</h1>
+        <p>Insira o ISBN para buscar os dados automaticamente</p>
+    </div>
+
+<form action="/livraria/atualizar/<%= livro._id %>" method="POST" class="card">
+    <div class="form-row">
+        <div class="form-group flex-2">
+            <label>ISBN (Não editável)</label>
+            <input type="text" name="isbn" value="<%= livro._id %>" readonly style="background: #eee;">
+        </div>
+        <div class="form-group">
+            <label>Estoque Atual</label>
+            <input type="number" name="estoque_atual" value="<%= livro.estoque_atual %>" required>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group flex-3">
+            <label>Título</label>
+            <input type="text" name="titulo" value="<%= livro.titulo %>" required>
+        </div>
+    </div>
+    <div style="margin: 20px auto 0; display: flex; gap: 10px; width: fit-content; min-width: 300px;">
+    <button type="submit" class="btn-atender" style="background-color: #1277bb; flex: 1;">
+        Salvar Alterações
+    </button>
+    <a href="/livraria/estoque" class="btn-atender" style="background-color: #666; text-decoration: none; display: flex; align-items: center;">Voltar</a>
+</div>
+</form>
+
+</div>
+
+<script>
+async function buscarLivro() {
+    const isbnInput = document.getElementById('isbn');
+    const isbn = isbnInput.value.replace(/\D/g, '');
+    const btn = document.getElementById('btnBuscar');
+    
+    if (isbn.length < 10) {
+        alert("Por favor, digite um ISBN válido.");
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Buscando...";
+    btn.disabled = true;
+
+    try {
+        // --- TENTATIVA 1: GOOGLE BOOKS ---
+        console.log("Tentando Google Books...");
+        const respGoogle = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        
+        if (respGoogle.ok) {
+            const dataG = await respGoogle.json();
+            if (dataG.totalItems > 0) {
+                const info = dataG.items[0].volumeInfo;
+                preencherCampos(
+                    info.title, 
+                    info.authors ? info.authors.join(', ') : '', 
+                    `${info.publisher || ''} ${info.publishedDate || ''}`
+                );
+                finalizarSucesso(btn, originalText);
+                return; // Para aqui se achou no Google
+            }
+        }
+
+        // --- TENTATIVA 2: BRASIL API (Se Google falhar ou não achar) ---
+        console.log("Google falhou ou cota excedida. Tentando Brasil API...");
+        const respBrasil = await fetch(`https://brasilapi.com.br/api/isbn/v1/${isbn}`);
+        
+        if (respBrasil.ok) {
+            const dataB = await respBrasil.json();
+            preencherCampos(
+                dataB.title,
+                dataB.authors ? dataB.authors.join(', ') : '',
+                `${dataB.publisher || ''} ${dataB.year || ''}`
+            );
+            finalizarSucesso(btn, originalText);
+        } else {
+            throw new Error("Livro não encontrado em nenhuma base.");
+        }
+
+    } catch (error) {
+        console.error("Erro na busca:", error);
+        alert("Não foi possível encontrar o livro automaticamente. Por favor, preencha manualmente.");
+        btn.innerText = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Funções auxiliares para manter o código limpo
+function preencherCampos(titulo, autor, editora) {
+    if(document.getElementById('titulo')) document.getElementById('titulo').value = titulo || '';
+    if(document.getElementById('autor')) document.getElementById('autor').value = autor || '';
+    if(document.getElementById('editora')) document.getElementById('editora').value = editora.trim() || '';
+}
+
+function finalizarSucesso(btn, originalText) {
+    btn.style.backgroundColor = "#28a745";
+    btn.innerText = "✅ Encontrado!";
+    setTimeout(() => {
+        btn.style.backgroundColor = "";
+        btn.innerText = originalText;
+    }, 2000);
+}
+</script>
+
+<%- include('../partials/footer') %>

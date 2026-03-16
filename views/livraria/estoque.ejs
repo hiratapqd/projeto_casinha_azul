@@ -1,0 +1,131 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/styles/styles.css">
+
+<div class="container">
+    <div class="hero">
+        <h1>Estoque da Livraria</h1>
+        <p>Gerencie os títulos disponíveis no centro</p>
+    </div>
+
+    <div style="margin-bottom: 20px; display: flex; justify-content: flex-end;">
+        <a href="/livraria/cadastro" class="btn-atender" style="background-color: #28a745;">+ Cadastrar Novo Livro</a>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>ISBN</th>
+                    <th>Título</th>
+                    <th>Autor / Espírito</th>
+                    <th>Estoque</th>
+                    <th>Preço Venda</th>
+                    <th>Giro (90 / 180 / 365d)</th> <th>Preço Venda</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% livros.forEach(livro => { %>
+                <tr>
+                    <td><%= livro._id %></td>
+                    <td><strong><%= livro.titulo %></strong></td>
+                    <td>
+                        <%= livro.autor %> <br>
+                        <small style="color: #666;">
+                            <%= livro.ditadoPor ? 'Espírito: ' + livro.ditadoPor : '' %>
+                        </small>
+                    </td>
+                    <td>
+                        <span class="status-badge <%= livro.estoque_atual <= 3 ? 'alerta' : 'atendimento' %>">
+                            <%= livro.estoque_atual %> un
+                        </span>
+                    </td>
+                    <td>R$ <%= livro.preco_venda.toFixed(2) %></td>
+                    <td>
+                        <div style="font-size: 0.9em; display: flex; gap: 5px;">
+                            <span title="90 dias" style="color: #1277bb; font-weight: bold;"><%= livro.vendas90 %></span>
+                            <span style="color: #ccc;">|</span>
+                            <span title="180 dias" style="color: #666;"><%= livro.vendas180 %></span>
+                            <span style="color: #ccc;">|</span>
+                            <span title="365 dias" style="color: #999;"><%= livro.vendas365 %></span>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/livraria/editar/<%= livro._id %>" class="muted">Editar</a>
+                            
+                            <div style="display: flex; gap: 5px; align-items: center; border-left: 1px solid #ddd; padding-left: 10px;">
+                                <input type="number" id="qtd-<%= livro._id %>" value="1" min="1" style="width: 45px; padding: 2px; text-align: center;">
+                                <button onclick="vender('<%= livro._id %>')" class="btn-atender" style="background-color: #28a745; padding: 5px 10px; font-size: 12px;">
+                                    Vender
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// Função para registrar venda rápida via Fetch API
+async function vender(isbn) {
+    const qtdInput = document.getElementById(`qtd-${isbn}`);
+    const qtd = qtdInput.value;
+    
+    // Confirmação simples para evitar cliques acidentais
+    if (!confirm(`Confirmar a venda de ${qtd} unidade(s)?`)) return;
+
+    try {
+        const response = await fetch('/livraria/venda-rapida', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isbn, qtd })
+        });
+
+        if (response.ok) {
+            Swal.fire({
+                title: 'Venda Realizada!',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                location.reload(); // Atualiza estoque e estatísticas
+            });
+        } else {
+            const data = await response.json();
+            alert(data.erro || "Erro ao realizar venda ou estoque insuficiente.");
+        }
+    } catch (error) {
+        console.error("Erro na requisição:", error);
+        alert("Erro ao conectar com o servidor.");
+    }
+}
+
+// Lógica de alertas SweetAlert para Sucesso/Atualização via URL
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('sucesso')) {
+    Swal.fire({
+        title: 'Livro Salvo!',
+        text: "O cadastro foi realizado com sucesso.",
+        icon: 'success',
+        confirmButtonColor: '#1277bb'
+    });
+} else if (urlParams.has('atualizado')) {
+    Swal.fire({
+        title: 'Atualizado!',
+        text: "Os dados foram atualizados com sucesso.",
+        icon: 'success',
+        confirmButtonColor: '#1277bb'
+    });
+}
+</script>
+
+<%- include('../partials/footer') %>
+
+<%- include('../partials/footer') %>

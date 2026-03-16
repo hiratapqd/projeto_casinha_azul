@@ -383,3 +383,8 @@ textarea {
         text-transform: capitalize;
         display: inline-block;
     }
+
+.status-badge.alerta {
+    background-color: #ff4d4d;
+    color: white;
+}

@@ -1,0 +1,141 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/styles/styles.css">
+<div class="container">
+    <div class="hero" style="padding: 20px 0;">
+        <h1>Cadastrar Novo Livro</h1>
+        <p>Insira o ISBN para buscar os dados automaticamente</p>
+    </div>
+
+    <form action="/livraria/salvar" method="POST" class="card" style="max-width: 1200px; margin: 0 auto; text-align: left;">
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>ISBN (Apenas números)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="isbn" name="isbn" placeholder="Ex: 9788573289206" required>
+                    <button type="button" onclick="buscarLivro()" id="btnBuscar" class="btn-atender" style="white-space: nowrap;">
+                        🔍 Buscar Dados
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Estoque Inicial</label>
+                <input type="number" name="estoque_inicial" value="1" min="1" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group flex-3">
+                <label>Título do Livro</label>
+                <input type="text" id="titulo" name="titulo" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Autor(es)</label>
+                <input type="text" id="autor" name="autor" required>
+            </div>
+            <div class="form-group">
+                <label>Ditado Por</label>
+                <input type="text" id="ditadoPor" name="ditadoPor">
+            </div>
+            <div class="form-group">
+                <label>Editora / Edição</label>
+                <input type="text" id="editora" name="editora">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Preço de Custo (R$)</label>
+                <input type="number" name="preco_custo" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Preço de Venda (R$)</label>
+                <input type="number" name="preco_venda" step="0.01" placeholder="0.00" required>
+            </div>
+        </div>
+
+        <div style="margin: 20px auto 0; display: flex; gap: 10px; width: fit-content; min-width: 300px;">
+            <button type="submit" class="btn-atender" style="background-color: #28a745; flex: 1;">Salvar Livro no Estoque</button>
+            <a href="/livraria/estoque" class="btn-atender" style="background-color: #666; text-align: center;">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script>
+async function buscarLivro() {
+    const isbnInput = document.getElementById('isbn');
+    const isbn = isbnInput.value.replace(/\D/g, '');
+    const btn = document.getElementById('btnBuscar');
+    
+    if (isbn.length < 10) {
+        alert("Por favor, digite um ISBN válido.");
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Buscando...";
+    btn.disabled = true;
+
+    try {
+        // --- TENTATIVA 1: GOOGLE BOOKS ---
+        console.log("Tentando Google Books...");
+        const respGoogle = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        
+        if (respGoogle.ok) {
+            const dataG = await respGoogle.json();
+            if (dataG.totalItems > 0) {
+                const info = dataG.items[0].volumeInfo;
+                preencherCampos(
+                    info.title, 
+                    info.authors ? info.authors.join(', ') : '', 
+                    `${info.publisher || ''} ${info.publishedDate || ''}`
+                );
+                finalizarSucesso(btn, originalText);
+                return; // Para aqui se achou no Google
+            }
+        }
+
+        console.log("Google falhou ou cota excedida. Tentando Brasil API...");
+        const respBrasil = await fetch(`https://brasilapi.com.br/api/isbn/v1/${isbn}`);
+        
+        if (respBrasil.ok) {
+            const dataB = await respBrasil.json();
+            preencherCampos(
+                dataB.title,
+                dataB.authors ? dataB.authors.join(', ') : '',
+                `${dataB.publisher || ''} ${dataB.year || ''}`
+            );
+            finalizarSucesso(btn, originalText);
+        } else {
+            throw new Error("Livro não encontrado em nenhuma base.");
+        }
+
+    } catch (error) {
+        console.error("Erro na busca:", error);
+        alert("Não foi possível encontrar o livro automaticamente. Por favor, preencha manualmente.");
+        btn.innerText = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Funções auxiliares para manter o código limpo
+function preencherCampos(titulo, autor, editora) {
+    if(document.getElementById('titulo')) document.getElementById('titulo').value = titulo || '';
+    if(document.getElementById('autor')) document.getElementById('autor').value = autor || '';
+    if(document.getElementById('editora')) document.getElementById('editora').value = editora.trim() || '';
+}
+
+function finalizarSucesso(btn, originalText) {
+    btn.style.backgroundColor = "#28a745";
+    btn.innerText = "✅ Encontrado!";
+    setTimeout(() => {
+        btn.style.backgroundColor = "";
+        btn.innerText = originalText;
+    }, 2000);
+}
+</script>
+
+<%- include('../partials/footer') %>

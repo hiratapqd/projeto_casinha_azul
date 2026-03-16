@@ -16,11 +16,10 @@ exports.criarAssistido = async (req, res) => {
 
         // 2. Prepara os dados conforme o seu esquema original
         const novoAssistido = new Assistido({
-            _id: cpf, // O CPF é o identificador único no seu banco
+            _id: cpf, 
             nome: nome,
             telefone: telefone,
             email: email,
-            // Formata a data para YYYY-MM-DD como no seu server.js original
             data_cadastro: new Date().toISOString().split('T')[0]
         });
 

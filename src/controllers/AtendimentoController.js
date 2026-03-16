@@ -30,31 +30,6 @@ exports.salvarAtendimento = async (req, res) => {
     }
 };
 
-/* exports.getHistoricoPorCPF = async (req, res) => {
-    try {
-        const { cpf, tipo } = req.params;
-        
-        // Busca o histórico
-        const historico = await Atendimento.find({ cpf_assistido: cpf, tipo: tipo })
-            .sort({ data: -1 })
-            .limit(12);
-
-        // Busca os dados cadastrais do assistido para retornar o nome atualizado
-        const assistidoDoc = await Assistido.findById(cpf);
-
-        // Retorna um objeto estruturado que o seu reiki.ejs espera
-        res.json({
-            assistido: { nome: assistidoDoc ? assistidoDoc.nome_assistido : (historico[0]?.nome_assistido || "") },
-            historico: historico
-        });
-    } catch (err) {
-        console.error("Erro no histórico:", err);
-        res.status(500).json({ assistido: { nome: "" }, historico: [] });
-    }
-}; */
-
-// No AtendimentoController.js
-
 exports.getHistoricoPorCPF = async (req, res) => {
     try {
         const { cpf, tipo } = req.params;

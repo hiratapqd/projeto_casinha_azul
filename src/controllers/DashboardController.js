@@ -26,13 +26,13 @@ const calcularEquipeAtiva = (voluntarios, mapa) => {
 };
 
 const calcularEscalaHoje = (voluntarios, mapa) => {
-    const diasRef = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    // Usamos a função de fuso horário que você já tem para garantir a data correta do Brasil
+    const hojeBrasilia = getDataBrasilia(); 
     
-    // Usamos o locale brasileiro para extrair o dia da semana correto independente do fuso do servidor
-    const hojeAbrev = new Date().toLocaleDateString('pt-BR', { weekday: 'short' })
+    const hojeAbrev = hojeBrasilia.toLocaleDateString('pt-BR', { weekday: 'short' })
                                 .toLowerCase()
-                                .replace('.', '') // Remove o ponto que alguns sistemas colocam (ex: sab.)
-                                .substring(0, 3); // Garante apenas 3 letras
+                                .replace('.', '') 
+                                .substring(0, 3); 
 
     const escala = [];
     voluntarios.forEach(v => {
@@ -40,7 +40,6 @@ const calcularEscalaHoje = (voluntarios, mapa) => {
         Object.entries(mapa).forEach(([label, chaves]) => {
             chaves.forEach(chave => {
                 const diasMarcados = disp[chave] || [];
-                // Comparamos o dia abreviado (ex: "sab") com o que está no banco
                 if (Array.isArray(diasMarcados) && diasMarcados.includes(hojeAbrev)) {
                     escala.push({ nome: v.nome, tipo: label });
                 }
@@ -49,7 +48,6 @@ const calcularEscalaHoje = (voluntarios, mapa) => {
     });
     return escala;
 };
-
 exports.getDashboard = async (req, res) => {
     try {
         const hojeBrasilia = getDataBrasilia();
