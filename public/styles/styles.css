@@ -388,3 +388,6 @@ textarea {
     background-color: #ff4d4d;
     color: white;
 }
+input[type="text"] {
+    text-transform: capitalize;
+}

@@ -17,9 +17,15 @@
                     </button>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Estoque Inicial</label>
-                <input type="number" name="estoque_inicial" value="1" min="1" required>
+            <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label>Estoque Inicial</label>
+                    <input type="number" name="estoque_inicial" value="2" min="1" style="width: 100%;" required>
+                </div>
+                <div style="flex: 1;">
+                    <label>Estoque Mínimo (Alerta)</label>
+                    <input type="number" name="estoque_minimo" value="2" min="0" style="width: 100%;" required>
+                </div>
             </div>
         </div>
 
@@ -64,6 +70,21 @@
 </div>
 
 <script>
+function capitalizarTexto(texto) {
+if (!texto) return '';
+
+// Lista de exceções que devem ficar em minúsculas (preposições, artigos, etc)
+const excecoes = ['de', 'do', 'da', 'dos', 'das', 'e', 'em', 'com', 'um', 'uma'];
+
+return texto.toLowerCase().split(' ').map((palavra, index) => {
+    // Se for a primeira palavra ou não estiver na lista de exceções, capitaliza
+    if (index === 0 || !excecoes.includes(palavra)) {
+        return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+    }
+    return palavra;
+}).join(' ');
+}
+
 async function buscarLivro() {
     const isbnInput = document.getElementById('isbn');
     const isbn = isbnInput.value.replace(/\D/g, '');
@@ -123,9 +144,15 @@ async function buscarLivro() {
 
 // Funções auxiliares para manter o código limpo
 function preencherCampos(titulo, autor, editora) {
-    if(document.getElementById('titulo')) document.getElementById('titulo').value = titulo || '';
-    if(document.getElementById('autor')) document.getElementById('autor').value = autor || '';
-    if(document.getElementById('editora')) document.getElementById('editora').value = editora.trim() || '';
+    // Aplicamos a capitalização antes de jogar no valor do input
+    if(document.getElementById('titulo')) 
+        document.getElementById('titulo').value = capitalizarTexto(titulo);
+    
+    if(document.getElementById('autor')) 
+        document.getElementById('autor').value = capitalizarTexto(autor);
+    
+    if(document.getElementById('editora')) 
+        document.getElementById('editora').value = capitalizarTexto(editora);
 }
 
 function finalizarSucesso(btn, originalText) {

@@ -10,25 +10,39 @@ exports.getCadastroLivro = (req, res) => {
     res.render('livraria/cadastro_livro');
 };
 
+const formatarTexto = (texto) => {
+    if (!texto) return '';
+    const excecoes = ['de', 'do', 'da', 'dos', 'das', 'e', 'em', 'com', 'um', 'uma', 'por'];
+    return texto.toLowerCase().trim().split(' ').map((palavra, index) => {
+        if (index === 0 || !excecoes.includes(palavra)) {
+            return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+        }
+        return palavra;
+    }).join(' ');
+};
+
+
 exports.salvarLivro = async (req, res) => {
     try {
-        const { isbn, titulo, autor, ditadoPor, editora, preco_custo, preco_venda, estoque_inicial } = req.body;
+        const { isbn, titulo, autor, ditadoPor, editora, preco_custo, preco_venda, estoque_inicial, estoque_minimo } = req.body;
 
         const novoLivro = new Livro({
             _id: isbn.replace(/\D/g, ''), 
-            titulo: titulo,
-            autor: autor,
-            ditadoPor: ditadoPor,
-            editora: editora,
+            titulo: formatarTexto(titulo),
+            autor: formatarTexto(autor),
+            ditadoPor: formatarTexto(ditadoPor),
+            editora: formatarTexto(editora),
             preco_custo: parseFloat(preco_custo) || 0,
             preco_venda: parseFloat(preco_venda) || 0,
-            estoque_atual: parseInt(estoque_inicial) || 0,
+            estoque_atual: parseInt(estoque_inicial) || 2,
+            estoque_minimo: parseInt(estoque_minimo) || 2,
             data_cadastro: getDataBrasilia()
         });
 
         await novoLivro.save();
         res.redirect('/livraria/estoque?sucesso=true');
     } catch (err) {
+        console.error("ERRO AO SALVAR:", err);
         if (err.code === 11000) {
             return res.status(400).send("Erro: Este ISBN já está cadastrado.");
         }
@@ -40,34 +54,56 @@ exports.salvarLivro = async (req, res) => {
 exports.getEstoque = async (req, res) => {
     try {
         const livros = await Livro.find().sort({ titulo: 1 }).lean();
+        const vendasGerais = await Venda.find().lean();
 
-        // Datas de corte
         const hoje = new Date();
+        const inicioDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        
+        // Datas de corte para o Giro
         const data90 = new Date(hoje.getTime() - (90 * 24 * 60 * 60 * 1000));
         const data180 = new Date(hoje.getTime() - (180 * 24 * 60 * 60 * 1000));
         const data365 = new Date(hoje.getTime() - (365 * 24 * 60 * 60 * 1000));
 
-        // Para cada livro, calculamos o giro
-        const livrosComGiro = await Promise.all(livros.map(async (livro) => {
-            const vendas = await Venda.find({ livro_id: livro._id });
+        let totalVendidoMes = 0;
+        let contagemTopMes = {}; 
 
-            // Soma as quantidades vendidas em cada período
-            livro.vendas90 = vendas
-                .filter(v => v.data_venda >= data90)
-                .reduce((acc, v) => acc + v.quantidade, 0);
+        const livrosComGiro = livros.map(livro => {
+            const vendasLivro = vendasGerais.filter(v => v.livro_id === livro._id);
 
-            livro.vendas180 = vendas
-                .filter(v => v.data_venda >= data180)
-                .reduce((acc, v) => acc + v.quantidade, 0);
+            // 1. Cálculo para os Cards (Mês Atual)
+            vendasLivro.forEach(v => {
+                if (v.data_venda >= inicioDoMes) {
+                    totalVendidoMes += v.valor_total || 0;
+                    contagemTopMes[livro.titulo] = (contagemTopMes[livro.titulo] || 0) + v.quantidade;
+                }
+            });
 
-            livro.vendas365 = vendas
-                .filter(v => v.data_venda >= data365)
-                .reduce((acc, v) => acc + v.quantidade, 0);
+            // 2. Cálculo para as Colunas de Giro (Histórico)
+            livro.vendas90 = vendasLivro.filter(v => v.data_venda >= data90).reduce((acc, v) => acc + v.quantidade, 0);
+            livro.vendas180 = vendasLivro.filter(v => v.data_venda >= data180).reduce((acc, v) => acc + v.quantidade, 0);
+            livro.vendas365 = vendasLivro.filter(v => v.data_venda >= data365).reduce((acc, v) => acc + v.quantidade, 0);
+            
+            // 3. Alerta de Reposição (Estoque < Média mensal dos últimos 90 dias)
+            livro.mediaMensal = (livro.vendas90 / 3);
+            //livro.alertaReposicao = livro.estoque_atual < livro.mediaMensal;
+            livro.alertaReposicao = livro.estoque_atual < (livro.estoque_minimo || 2) || livro.estoque_atual < livro.mediaMensal;
 
             return livro;
-        }));
+        });
 
-        res.render('livraria/estoque', { livros: livrosComGiro });
+        // Ordenar o Top 5 do Mês
+        const top5 = Object.entries(contagemTopMes)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        const totalAlertas = livrosComGiro.filter(l => l.alertaReposicao).length;
+
+        res.render('livraria/estoque', { 
+            livros: livrosComGiro, 
+            totalVendidoMes, 
+            top5, 
+            totalAlertas 
+        });
     } catch (err) {
         console.error(err);
         res.status(500).send("Erro ao carregar estoque.");
@@ -77,9 +113,9 @@ exports.getEstoque = async (req, res) => {
 exports.getEditarLivro = async (req, res) => {
     try {
         const livro = await Livro.findById(req.params.id);
-        if (!livro) {
-            return res.status(404).send("Livro não encontrado.");
-        }
+        // Adicione um console.log aqui para testar se a editora existe no objeto
+//        console.log("Dados do livro para edição:", livro); 
+        
         res.render('livraria/editar_livro', { livro });
     } catch (err) {
         res.status(500).send("Erro ao carregar dados do livro.");
@@ -88,16 +124,17 @@ exports.getEditarLivro = async (req, res) => {
 
 exports.atualizarLivro = async (req, res) => {
     try {
-        const { titulo, autor, ditadoPor, editora, preco_custo, preco_venda, estoque_atual } = req.body;
+        const { titulo, autor, ditadoPor, editora, preco_custo, preco_venda, estoque_atual, estoque_minimo } = req.body;
         
         await Livro.findByIdAndUpdate(req.params.id, {
-            titulo: titulo,
-            autor: autor,
-            ditadoPor: ditadoPor,
-            editora: editora,
+            titulo: formatarTexto(titulo),
+            autor: formatarTexto(autor),
+            ditadoPor: formatarTexto(ditadoPor),
+            editora: formatarTexto(editora),
             preco_custo: Number(preco_custo) || 0,
             preco_venda: Number(preco_venda) || 0,
-            estoque_atual: Number(estoque_atual) || 0
+            estoque_atual: Number(estoque_atual) || 0,
+            estoque_minimo: parseInt(estoque_minimo) || 2
         });
 
         res.redirect('/livraria/estoque?atualizado=true');
