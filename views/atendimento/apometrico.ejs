@@ -123,10 +123,23 @@
           // Inserir a queixa no campo de Observações
           if (resHist.queixa_atual) {
               const campoObs = document.querySelector('textarea[name="observacoes"]');
-              if (campoObs) {
+/*               if (campoObs) {
                   // Adiciona a queixa no início das observações
                   campoObs.value = `QUEIXA DO DIA: ${resHist.queixa_atual}\n\n`;
-              }
+              } */
+                    if (campoObs) {
+                    const queixa = resHist.queixa_atual || "Não informada";
+                    
+                    // Monta o texto estruturado
+                    const textoEstruturado = `QUEIXA DO DIA: ${queixa}\n` +
+                                            `-----------------------------\n` +
+                                            `OBSERVAÇÕES DO TERAPEUTA:\n`;
+
+                    // Só preenche se o campo estiver vazio para não apagar algo que o terapeuta já começou a escrever
+                    if (campoObs.value.trim() === "") {
+                        campoObs.value = textoEstruturado;
+                    }
+                    }
           }
 
           renderizarTabela(resHist.historico || []);

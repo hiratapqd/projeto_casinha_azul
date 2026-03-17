@@ -93,13 +93,13 @@
       const respHist = await fetch(`/api/historico/reiki/${cpf}`).then(r => r.json());
       
       // Coloca a queixa nas observações
-      if (respHist.queixa_atual) {
+/*       if (respHist.queixa_atual) {
         const campoObs = document.getElementById('campo_observacoes');
         if (campoObs && !campoObs.value.includes("QUEIXA DO DIA:")) {
             campoObs.value = `QUEIXA DO DIA: ${respHist.queixa_atual}\n\n` + campoObs.value;
         }
       }
-
+ */
       renderizarTabela(respHist.historico);
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
