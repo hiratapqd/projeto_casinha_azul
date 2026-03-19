@@ -97,7 +97,7 @@
             </select>
         </div><br><br>
 
-        <button type="submit" class="btn-enviar" <%= typeof bloqueado !== 'undefined' && bloqueado ? 'disabled' : '' %>>
+        <button type="submit" class="btn-atender btn-success" <%= typeof bloqueado !== 'undefined' && bloqueado ? 'disabled' : '' %>>
             <%= typeof bloqueado !== 'undefined' && bloqueado ? 'Limite Excedido para Hoje' : 'Registrar Solicitação' %>
         </button>
     </form>
