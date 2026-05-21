@@ -2,6 +2,10 @@ const Atendimento = require('../models/Atendimento');
 const Assistido = require('../models/Assistido');
 const Voluntario = require('../models/Voluntario');
 
+function normalizarTipo(tipo = '') {
+    return String(tipo).trim().toLowerCase();
+}
+
 exports.getAtendimentosHoje = async (req, res) => {
     try {
         const agora = new Date();
@@ -239,34 +243,88 @@ exports.getApometriaInativos = async (req, res) => {
         data90.setDate(hoje.getDate() - 90);
         data90.setHours(23, 59, 59, 999);
 
-        const ultimosAtendimentos = await Atendimento.aggregate([
+        const historicosPorAssistido = await Atendimento.aggregate([
             {
                 $match: {
-                    tipo: { $in: ['apometria', 'passe'] }
+                    cpf_assistido: { $exists: true, $nin: [null, ''] }
                 }
             },
+            { $sort: { cpf_assistido: 1, data: 1, _id: 1 } },
             {
                 $group: {
                     _id: '$cpf_assistido',
-                    nome: { $first: '$nome_assistido' },
-                    ultimaData: { $max: '$data' }
+                    atendimentos: {
+                        $push: {
+                            data: '$data',
+                            nome: '$nome_assistido',
+                            tipo: '$tipo'
+                        }
+                    }
                 }
             }
         ]);
 
+        const candidatos = historicosPorAssistido.reduce((acc, registro) => {
+            const atendimentos = (registro.atendimentos || [])
+                .map((atendimento) => ({
+                    ...atendimento,
+                    data: new Date(atendimento.data),
+                    tipo: normalizarTipo(atendimento.tipo)
+                }))
+                .filter((atendimento) => atendimento.tipo && !Number.isNaN(atendimento.data.getTime()));
+
+            const indiceUltimaApometria = atendimentos
+                .map((atendimento) => atendimento.tipo)
+                .lastIndexOf('apometria');
+
+            if (indiceUltimaApometria === -1) {
+                return acc;
+            }
+
+            const ultimaApometria = atendimentos[indiceUltimaApometria];
+            const dataUltimaApometria = ultimaApometria.data.getTime();
+            const atendimentosDesdeUltimaApometria = atendimentos.filter((atendimento) => {
+                return atendimento.data.getTime() >= dataUltimaApometria;
+            });
+
+            const temPasseNoCiclo = atendimentosDesdeUltimaApometria.some((atendimento) => atendimento.tipo === 'passe');
+            const teveOutroAtendimentoDepois = atendimentosDesdeUltimaApometria.some((atendimento) => {
+                return atendimento.tipo !== 'apometria' && atendimento.tipo !== 'passe';
+            });
+
+            if (!temPasseNoCiclo || teveOutroAtendimentoDepois) {
+                return acc;
+            }
+
+            const ultimoAtendimento = atendimentos[atendimentos.length - 1];
+            acc.push({
+                cpf: registro._id,
+                nome: ultimoAtendimento.nome || ultimaApometria.nome || '',
+                ultimaData: ultimoAtendimento.data
+            });
+
+            return acc;
+        }, []);
+
+        const dadosCadastrais = await Assistido.find({
+            _id: { $in: candidatos.map((item) => item.cpf) }
+        }).lean();
+
+        const dadosPorCpf = new Map(dadosCadastrais.map((assistido) => [assistido._id, assistido]));
+
         const listas = { d30: [], d60: [], d90: [] };
         const counts = { d30: 0, d60: 0, d90: 0 };
 
-        for (const registro of ultimosAtendimentos) {
-            const dataAtendimento = new Date(registro.ultimaData);
-            const cpfParaBusca = registro._id;
-            const dadosCadastrais = await Assistido.findById(cpfParaBusca).lean();
+        for (const candidato of candidatos) {
+            const dataAtendimento = new Date(candidato.ultimaData);
+            const cpfParaBusca = candidato.cpf;
+            const cadastro = dadosPorCpf.get(cpfParaBusca);
             const item = {
                 cpf: cpfParaBusca,
-                nome: registro.nome,
-                ultimaData: registro.ultimaData,
-                telefone: dadosCadastrais ? (dadosCadastrais.telefone_assistido || '') : 'Nao cadastrado',
-                email: dadosCadastrais ? (dadosCadastrais.email_assistido || '') : 'Nao cadastrado'
+                nome: candidato.nome,
+                ultimaData: candidato.ultimaData,
+                telefone: cadastro ? (cadastro.telefone_assistido || '') : 'Nao cadastrado',
+                email: cadastro ? (cadastro.email_assistido || '') : 'Nao cadastrado'
             };
 
             if (dataAtendimento < data90) {
@@ -280,6 +338,10 @@ exports.getApometriaInativos = async (req, res) => {
                 counts.d30++;
             }
         }
+
+        Object.values(listas).forEach((lista) => {
+            lista.sort((a, b) => new Date(a.ultimaData) - new Date(b.ultimaData));
+        });
 
         res.render('relatorios/apometria_inativos', {
             listas,
