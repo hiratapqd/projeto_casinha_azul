@@ -10,12 +10,12 @@
 %>
 
 <main class="hero disponibilidade-page">
-    <h1>Disponibilidade dos Voluntarios</h1>
-    <p>Consulte os dias em que cada voluntario esta disponivel por modalidade.</p>
+    <h1>Disponibilidade dos Voluntários</h1>
+    <p>Consulte os dias em que cada voluntário está disponível por modalidade.</p>
 
     <section class="disponibilidade-resumo">
         <article class="resumo-item">
-            <span class="resumo-label">Voluntarios encontrados</span>
+            <span class="resumo-label">Voluntários encontrados</span>
             <strong><%= resumo.total %></strong>
         </article>
         <article class="resumo-item">
@@ -30,7 +30,7 @@
 
     <form action="/voluntarios/disponibilidade" method="GET" class="form-container disponibilidade-filtros">
         <div class="form-group">
-            <label for="busca">Buscar voluntario:</label>
+            <label for="busca">Buscar voluntário:</label>
             <input
                 type="text"
                 id="busca"
@@ -137,7 +137,7 @@
                 <% } else { %>
                     <tr>
                         <td colspan="<%= modalidades.length + 3 %>" class="estado-vazio">
-                            Nenhum voluntario encontrado para os filtros selecionados.
+                            Nenhum voluntário encontrado para os filtros selecionados.
                         </td>
                     </tr>
                 <% } %>
