@@ -1,6 +1,21 @@
 const Atendimento = require('../models/Atendimento');
 const Voluntario = require('../models/Voluntario');
 
+function normalizarCpf(cpf = '') {
+    return String(cpf).replace(/\D/g, '');
+}
+
+function normalizarTipo(tipo = '') {
+    return String(tipo).trim().toLowerCase();
+}
+
+function formatarPercentualTruncado(valor, total) {
+    if (!total) return '0.00';
+
+    const percentual = (valor / total) * 100;
+    return (Math.floor(percentual * 100) / 100).toFixed(2);
+}
+
 // --- FUNÇÃO AUXILIAR PARA PEGAR DATA EM GMT-3 ---
 const getDataBrasilia = () => {
     const agora = new Date();
@@ -48,6 +63,68 @@ const calcularEscalaHoje = (voluntarios, mapa) => {
     });
     return escala;
 };
+
+const calcularAbandonoApometria = async () => {
+    const historico = await Atendimento.find(
+        { cpf_assistido: { $exists: true, $nin: [null, ''] } },
+        { cpf_assistido: 1, tipo: 1, data: 1 }
+    ).lean();
+
+    const historicosPorCpf = new Map();
+
+    historico.forEach((atendimento) => {
+        const cpf = normalizarCpf(atendimento.cpf_assistido);
+        const tipo = normalizarTipo(atendimento.tipo);
+        const data = new Date(atendimento.data);
+
+        if (!cpf || !tipo || Number.isNaN(data.getTime())) return;
+
+        if (!historicosPorCpf.has(cpf)) {
+            historicosPorCpf.set(cpf, []);
+        }
+
+        historicosPorCpf.get(cpf).push({ tipo, data });
+    });
+
+    let totalComApometria = 0;
+    let totalAbandonos = 0;
+
+    historicosPorCpf.forEach((atendimentos) => {
+        atendimentos.sort((a, b) => a.data - b.data);
+
+        const indiceUltimaApometria = atendimentos
+            .map((atendimento) => atendimento.tipo)
+            .lastIndexOf('apometria');
+
+        if (indiceUltimaApometria === -1) return;
+
+        totalComApometria++;
+
+        const dataUltimaApometria = atendimentos[indiceUltimaApometria].data.getTime();
+        const atendimentosDesdeUltimaApometria = atendimentos.filter((atendimento) => {
+            return atendimento.data.getTime() >= dataUltimaApometria;
+        });
+
+        const temPasseNoCiclo = atendimentosDesdeUltimaApometria.some((atendimento) => {
+            return atendimento.tipo === 'passe';
+        });
+
+        const teveOutroAtendimentoDepois = atendimentosDesdeUltimaApometria.some((atendimento) => {
+            return atendimento.tipo !== 'apometria' && atendimento.tipo !== 'passe';
+        });
+
+        if (temPasseNoCiclo && !teveOutroAtendimentoDepois) {
+            totalAbandonos++;
+        }
+    });
+
+    return {
+        totalBase: totalComApometria,
+        totalAbandonos,
+        taxaAbandono: formatarPercentualTruncado(totalAbandonos, totalComApometria)
+    };
+};
+
 exports.getDashboard = async (req, res) => {
     try {
         const hojeBrasilia = getDataBrasilia();
@@ -57,9 +134,6 @@ exports.getDashboard = async (req, res) => {
         
         const hojeFim = new Date(hojeBrasilia);
         hojeFim.setUTCHours(23, 59, 59, 999);
-
-        const limite14Dias = new Date(hojeBrasilia);
-        limite14Dias.setUTCDate(limite14Dias.getUTCDate() - 14);
 
         // 1. Buscas no Banco (Campo 'data' conforme o print)
         const [totalAtendimentosHoje, voluntariosDB] = await Promise.all([
@@ -96,55 +170,9 @@ exports.getDashboard = async (req, res) => {
                 atendimentosHoje[item._id] = item.total;
             }
         });
-        // 2. Lógica de Taxa de Abandono (AJUSTADO PARA 'tipoAtendimento' e 'Apometria')
+        // Taxa de abandono: assistidos com apometria + passe e nenhum retorno posterior.
+        const abandonoApometria = await calcularAbandonoApometria();
 
-/*         // 2.1. Pegar todos os CPFs únicos que já fizeram Apometria em qualquer tempo
-        const todosQueFizeramApometria = await Atendimento.distinct("cpf_assistido", { tipo: "apometria" });
-
-        // 2.2. Pegar todos os CPFs que já fizeram QUALQUER OUTRO tipo de atendimento (Reiki, Passe, etc)
-        const todosQueFizeramOutros = await Atendimento.distinct("cpf_assistido", { 
-            tipo: { $ne: "apometria" } 
-        });
-
-        const setOutros = new Set(todosQueFizeramOutros.map(cpf => String(cpf)));
-
-        // 2.3. Abandono = Quem está na lista da Apometria mas NÃO está na lista de Outros
-        const abandonosReais = todosQueFizeramApometria.filter(cpf => !setOutros.has(String(cpf)));
-
-        // 2.4. Cálculo da Taxa
-        // Total de pessoas que passaram pela Apometria (base do cálculo)
-        const totalBaseApometria = todosQueFizeramApometria.length;
-
-        const taxaAbandono = totalBaseApometria > 0 
-            ? ((abandonosReais.length / totalBaseApometria) * 100).toFixed(1) 
-            : 0; */
-        // --- 2. CÁLCULO DE ABANDONO (Baseado em quem não volta mais) ---
-        const trintaDiasAtras = new Date(getDataBrasilia());
-        trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
-
-        // Pegamos a última vez que cada pessoa esteve na casa (Apometria ou Passe)
-        const presencasRecentes = await Atendimento.aggregate([
-            { $match: { tipo: { $in: ['apometria', 'passe'] } } },
-            { $group: {
-                _id: "$cpf_assistido",
-                ultimaVez: { $max: "$data" }
-            }}
-        ]);
-
-        // 1. Quem veio nos últimos 30 dias (Ativos)
-        const ativos = presencasRecentes.filter(p => p.ultimaVez >= trintaDiasAtras).map(p => p._id);
-        const setAtivos = new Set(ativos);
-
-        // 2. Todos que já fizeram Apometria na história
-        const todosApometria = await Atendimento.distinct('cpf_assistido', { tipo: 'apometria' });
-
-        // 3. Abandonos = Pessoas da Apometria que NÃO estão no set de ativos
-        const abandonosReais = todosApometria.filter(cpf => !setAtivos.has(cpf));
-
-        const totalBase = todosApometria.length;
-        const taxaAbandono = totalBase > 0 
-            ? ((abandonosReais.length / totalBase) * 100).toFixed(1) 
-            : 0;
         // 3. Mapeamento Geral
         const mapaGeral = {
             "Apometria": ["apometria"],
@@ -163,8 +191,9 @@ exports.getDashboard = async (req, res) => {
         res.render('index', {
             resumo: {
                 hoje: totalAtendimentosHoje,
-                taxaAbandono: taxaAbandono, 
-                apometriaUnica: abandonosReais.length, 
+                taxaAbandono: abandonoApometria.taxaAbandono,
+                apometriaUnica: abandonoApometria.totalAbandonos,
+                totalBaseApometria: abandonoApometria.totalBase,
                 detalheAtendimentos: atendimentosHoje,
                 voluntariosPorTipo,
                 totalVoluntarios: voluntariosDB.length
