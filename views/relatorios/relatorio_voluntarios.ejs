@@ -19,7 +19,7 @@
                     <th>Nome do Voluntário</th>
                     <th>CPF</th>
                     <th>Ultima Presença</th>
-                    <th>Total de Presenças</th>
+                    <th>Presenças nos 30 dias</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,7 +34,7 @@
                     <% }) %>
                 <% } else { %>
                     <tr>
-                        <td colspan="4">Nenhuma presença de voluntário encontrada no histórico.</td>
+                        <td colspan="4">Nenhuma presença de voluntário encontrada nos últimos 30 dias.</td>
                     </tr>
                 <% } %>
             </tbody>

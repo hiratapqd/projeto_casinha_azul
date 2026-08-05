@@ -7,6 +7,10 @@ function normalizarTipo(tipo = '') {
     return String(tipo).trim().toLowerCase();
 }
 
+function normalizarCpf(cpf = '') {
+    return String(cpf).replace(/\D/g, '');
+}
+
 exports.getAtendimentosHoje = async (req, res) => {
     try {
         const agora = new Date();
@@ -129,7 +133,8 @@ exports.getRelatorioVoluntarios = async (req, res) => {
         const listaVoluntarios = await PresencaVoluntario.aggregate([
             {
                 $match: {
-                    cpf_voluntario: { $exists: true, $nin: [null, ''] }
+                    cpf_voluntario: { $exists: true, $nin: [null, ''] },
+                    data_presenca: { $gte: dataLimite }
                 }
             },
             { $sort: { data_presenca: -1, data_registro: -1 } },
@@ -145,9 +150,7 @@ exports.getRelatorioVoluntarios = async (req, res) => {
             { $sort: { ultimaParticipacao: -1, nome: 1 } }
         ]);
 
-        const voluntariosAtivos30Dias = listaVoluntarios.filter((v) => {
-            return v.ultimaParticipacao && new Date(v.ultimaParticipacao) >= dataLimite;
-        }).length;
+        const voluntariosAtivos30Dias = listaVoluntarios.length;
 
         res.render('relatorios/relatorio_voluntarios', {
             voluntarios: listaVoluntarios,
@@ -172,45 +175,43 @@ exports.getVoluntariosInativos = async (req, res) => {
             esta_ativo: { $nin: ['Não', 'Nao', 'não', 'nao'] }
         }).sort({ nome: 1 }).lean();
 
-        const nomesVoluntarios = voluntariosAtivos
-            .map((voluntario) => voluntario.nome)
-            .filter(Boolean);
+        const cpfsVoluntarios = voluntariosAtivos
+            .map((voluntario) => normalizarCpf(voluntario._id))
+            .filter((cpf) => cpf.length === 11);
 
-        const ultimasParticipacoes = nomesVoluntarios.length > 0
-            ? await Atendimento.aggregate([
+        const ultimasParticipacoes = cpfsVoluntarios.length > 0
+            ? await PresencaVoluntario.aggregate([
                 {
                     $match: {
-                        voluntario: { $exists: true, $nin: [null, ''] }
-                    }
-                },
-                {
-                    $project: {
-                        data: 1,
-                        voluntarioNormalizado: {
-                            $toLower: {
-                                $trim: { input: '$voluntario' }
-                            }
-                        }
+                        cpf_voluntario: { $in: cpfsVoluntarios }
                     }
                 },
                 {
                     $group: {
-                        _id: '$voluntarioNormalizado',
-                        ultimaParticipacao: { $max: '$data' }
+                        _id: '$cpf_voluntario',
+                        ultimaParticipacao: { $max: '$data_presenca' },
+                        totalPresencas: { $sum: 1 }
                     }
                 }
             ])
             : [];
 
-        const mapaUltimasParticipacoes = Object.fromEntries(
-            ultimasParticipacoes.map((item) => [item._id, item.ultimaParticipacao])
+        const mapaPresencas = Object.fromEntries(
+            ultimasParticipacoes.map((item) => [item._id, item])
         );
 
         const voluntariosInativos = voluntariosAtivos
-            .map((voluntario) => ({
-                ...voluntario,
-                ultimaParticipacao: mapaUltimasParticipacoes[voluntario.nome.trim().toLowerCase()] || null
-            }))
+            .map((voluntario) => {
+                const cpf = normalizarCpf(voluntario._id);
+                const presenca = mapaPresencas[cpf];
+
+                return {
+                    ...voluntario,
+                    cpf,
+                    ultimaParticipacao: presenca ? presenca.ultimaParticipacao : null,
+                    totalPresencas: presenca ? presenca.totalPresencas : 0
+                };
+            })
             .filter((voluntario) => !voluntario.ultimaParticipacao || new Date(voluntario.ultimaParticipacao) < dataLimite)
             .sort((a, b) => {
                 if (!a.ultimaParticipacao && !b.ultimaParticipacao) return a.nome.localeCompare(b.nome);
@@ -224,7 +225,7 @@ exports.getVoluntariosInativos = async (req, res) => {
             resumo: {
                 inativos90Dias: voluntariosInativos.length
             },
-            titulo: 'Voluntarios sem atendimento recente'
+            titulo: 'Voluntarios sem presenca recente'
         });
     } catch (err) {
         console.error('Erro no relatorio de voluntarios inativos:', err);
