@@ -189,8 +189,7 @@ exports.getVoluntariosInativos = async (req, res) => {
                 {
                     $group: {
                         _id: '$cpf_voluntario',
-                        ultimaParticipacao: { $max: '$data_presenca' },
-                        totalPresencas: { $sum: 1 }
+                        ultimaParticipacao: { $max: '$data_presenca' }
                     }
                 }
             ])
@@ -208,8 +207,7 @@ exports.getVoluntariosInativos = async (req, res) => {
                 return {
                     ...voluntario,
                     cpf,
-                    ultimaParticipacao: presenca ? presenca.ultimaParticipacao : null,
-                    totalPresencas: presenca ? presenca.totalPresencas : 0
+                    ultimaParticipacao: presenca ? presenca.ultimaParticipacao : null
                 };
             })
             .filter((voluntario) => !voluntario.ultimaParticipacao || new Date(voluntario.ultimaParticipacao) < dataLimite)
