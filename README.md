@@ -115,4 +115,4 @@ populate_db/
 
 ## Manual do usuario
 
-O guia operacional voltado ao usuario final esta em [MANUAL_DO_USUARIO.md](./MANUAL_DO_USUARIO.md).
+O guia operacional voltado ao usuario final esta em [MANUAL_DO_USUARIO.docx](./MANUAL_DO_USUARIO.docx).
