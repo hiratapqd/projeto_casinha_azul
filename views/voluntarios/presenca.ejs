@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/styles/styles.css">
+
+<main class="hero presenca-page">
+    <h1>Registro de Presença</h1>
+
+    <form action="/voluntarios/presenca" method="POST" class="form-container presenca-form" id="formPresenca">
+        <div class="form-group">
+            <label for="cpf">CPF do voluntário:</label>
+            <input
+                type="text"
+                id="cpf"
+                name="cpf"
+                class="input-cpf"
+                placeholder="000.000.000-00"
+                required
+                autofocus
+                inputmode="numeric"
+                maxlength="14"
+                autocomplete="off"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="data_presenca">Data:</label>
+            <input
+                type="text"
+                id="data_presenca"
+                value="<%= dataHoje %>"
+                readonly
+                aria-readonly="true"
+            >
+        </div>
+
+        <% if (feedback) { %>
+            <div class="presenca-feedback <%= feedback.tipo %>" role="alert">
+                <strong><%= feedback.titulo %></strong>
+                <span><%= feedback.mensagem %></span>
+            </div>
+        <% } %>
+
+        <div class="presenca-acoes">
+            <button type="submit" class="btn-atender btn-success">Registrar presença</button>
+            <a href="/" class="btn-atender btn-cancelar">Cancelar</a>
+        </div>
+    </form>
+</main>
+
+<script>
+    const campoCpfPresenca = document.getElementById('cpf');
+
+    function formatarCpf(valor) {
+        return (valor || '')
+            .replace(/\D/g, '')
+            .slice(0, 11)
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+
+    campoCpfPresenca.addEventListener('input', (event) => {
+        event.target.value = formatarCpf(event.target.value);
+    });
+</script>
+
+<%- include('../partials/footer') %>

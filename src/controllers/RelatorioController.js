@@ -1,6 +1,7 @@
 const Atendimento = require('../models/Atendimento');
 const Assistido = require('../models/Assistido');
 const Voluntario = require('../models/Voluntario');
+const PresencaVoluntario = require('../models/PresencaVoluntario');
 
 function normalizarTipo(tipo = '') {
     return String(tipo).trim().toLowerCase();
@@ -125,19 +126,23 @@ exports.getRelatorioVoluntarios = async (req, res) => {
         dataLimite.setDate(dataLimite.getDate() - 30);
         dataLimite.setHours(0, 0, 0, 0);
 
-        const listaVoluntarios = await Atendimento.aggregate([
+        const listaVoluntarios = await PresencaVoluntario.aggregate([
             {
                 $match: {
-                    voluntario: { $exists: true, $nin: [null, ''] }
+                    cpf_voluntario: { $exists: true, $nin: [null, ''] }
                 }
             },
+            { $sort: { data_presenca: -1, data_registro: -1 } },
             {
                 $group: {
-                    _id: '$voluntario',
-                    ultimaParticipacao: { $max: '$data' }
+                    _id: '$cpf_voluntario',
+                    cpf: { $first: '$cpf_voluntario' },
+                    nome: { $first: '$nome_voluntario' },
+                    ultimaParticipacao: { $first: '$data_presenca' },
+                    totalPresencas: { $sum: 1 }
                 }
             },
-            { $sort: { ultimaParticipacao: -1, _id: 1 } }
+            { $sort: { ultimaParticipacao: -1, nome: 1 } }
         ]);
 
         const voluntariosAtivos30Dias = listaVoluntarios.filter((v) => {

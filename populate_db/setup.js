@@ -28,6 +28,7 @@ async function run() {
             'solicitacoes',
             'terapias',
             'vendas',
+            'presencas_voluntarios',
             'voluntarios'
         ];
 

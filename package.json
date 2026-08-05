@@ -8,6 +8,7 @@
     "db:setup": "node populate_db/setup.js",
     "db:seed-demo": "node populate_db/seed_demo_apometria.js",
     "db:import-csv": "node populate_db/import_atendimentos_csv.js",
+    "db:import-presencas": "node populate_db/import_presencas_voluntarios.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

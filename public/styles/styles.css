@@ -640,6 +640,119 @@ nav li,
     padding: 28px !important;
 }
 
+.presenca-page {
+    padding-top: 70px;
+}
+
+.presenca-form {
+    width: min(520px, 100%);
+    margin: 24px auto 0;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #dfe8f1;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    text-align: left;
+}
+
+.presenca-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.presenca-form label {
+    color: #2f4050;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.presenca-form input[type="text"] {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #cfd9e3;
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: #fff;
+    color: #1f2f3d;
+    font-size: 1rem;
+    text-transform: none;
+}
+
+.presenca-form input[readonly] {
+    background: #f1f6fa;
+    color: #526273;
+    cursor: not-allowed;
+}
+
+.presenca-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.btn-cancelar.btn-atender {
+    background: #6c757d;
+    box-shadow: 0 5px 0 #545b62;
+}
+
+.btn-cancelar.btn-atender:hover {
+    background: #5f6870;
+    box-shadow: 0 7px 0 #545b62;
+}
+
+.btn-cancelar.btn-atender:active {
+    background: #545b62;
+    box-shadow: 0 1px 0 #545b62;
+}
+
+.presenca-feedback {
+    display: grid;
+    gap: 4px;
+    margin: 6px 0 18px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+
+.presenca-feedback strong {
+    font-size: 0.95rem;
+}
+
+.presenca-feedback span {
+    color: #2f4050;
+    font-size: 0.92rem;
+}
+
+.presenca-feedback.sucesso {
+    background: #e8f7ed;
+    border-color: #bfe8cb;
+}
+
+.presenca-feedback.sucesso strong {
+    color: #1e7e34;
+}
+
+.presenca-feedback.erro {
+    background: #fdecec;
+    border-color: #f3c4c4;
+}
+
+.presenca-feedback.erro strong {
+    color: #b02a37;
+}
+
+.presenca-feedback.alerta {
+    background: #fff8e6;
+    border-color: #ffe0a3;
+}
+
+.presenca-feedback.alerta strong {
+    color: #9a6700;
+}
+
 @media (max-width: 900px) {
     .disponibilidade-filtros {
         grid-template-columns: 1fr 1fr;
@@ -666,5 +779,13 @@ nav li,
     .filtro-acoes {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .presenca-form {
+        padding: 18px;
+    }
+
+    .presenca-acoes {
+        flex-direction: column;
     }
 }

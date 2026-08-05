@@ -1,5 +1,6 @@
 const Voluntario = require('../models/Voluntario');
 const Atendimento = require('../models/Atendimento');
+const PresencaVoluntario = require('../models/PresencaVoluntario');
 
 const modalidadesDisponibilidade = [
     { id: 'apometria', label: 'Apometria' },
@@ -22,8 +23,40 @@ const diasDisponibilidade = [
     { value: 'dom', label: 'Domingo' }
 ];
 
+function normalizarCpf(cpf = '') {
+    return String(cpf).replace(/\D/g, '');
+}
+
+function criarRegexCpfFlexivel(cpf = '') {
+    const cpfLimpo = normalizarCpf(cpf);
+    if (!cpfLimpo) return null;
+
+    return new RegExp(`^\\D*${cpfLimpo.split('').join('\\D*')}\\D*$`);
+}
+
+function obterHojeSaoPaulo() {
+    const dataIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+    return {
+        dataIso,
+        dataInicio: new Date(`${dataIso}T00:00:00-03:00`),
+        dataExibicao: new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(
+            new Date(`${dataIso}T12:00:00-03:00`)
+        )
+    };
+}
+
 function escapeRegex(valor = '') {
     return valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderFormularioPresenca(res, feedback = null, statusCode = 200) {
+    const hoje = obterHojeSaoPaulo();
+
+    return res.status(statusCode).render('voluntarios/presenca', {
+        dataHoje: hoje.dataExibicao,
+        feedback
+    });
 }
 
 exports.criarVoluntario = async (req, res) => {
@@ -157,6 +190,76 @@ exports.getDisponibilidadeVoluntarios = async (req, res) => {
     } catch (err) {
         console.error('Erro ao listar disponibilidade dos voluntarios:', err);
         res.status(500).send('Erro ao listar disponibilidade dos voluntarios');
+    }
+};
+
+exports.getFormularioPresenca = async (req, res) => {
+    renderFormularioPresenca(res);
+};
+
+exports.registrarPresenca = async (req, res) => {
+    try {
+        const cpf = normalizarCpf(req.body.cpf);
+        const hoje = obterHojeSaoPaulo();
+
+        if (cpf.length !== 11) {
+            return renderFormularioPresenca(res, {
+                tipo: 'erro',
+                titulo: 'CPF invalido',
+                mensagem: 'Informe um CPF com 11 digitos.'
+            }, 400);
+        }
+
+        const cpfRegex = criarRegexCpfFlexivel(cpf);
+        const voluntario = await Voluntario.findById(cpf).lean()
+            || await Voluntario.findOne({ _id: cpfRegex }).lean();
+
+        if (!voluntario) {
+            return renderFormularioPresenca(res, {
+                tipo: 'erro',
+                titulo: 'Voluntario nao encontrado',
+                mensagem: 'Este CPF nao possui cadastro de voluntario.'
+            }, 404);
+        }
+
+        const idPresenca = `${cpf}_${hoje.dataIso}`;
+        const presencaExistente = await PresencaVoluntario.findById(idPresenca).lean();
+
+        if (presencaExistente) {
+            return renderFormularioPresenca(res, {
+                tipo: 'alerta',
+                titulo: 'Presenca ja registrada',
+                mensagem: `${voluntario.nome} ja possui presenca registrada para hoje.`
+            });
+        }
+
+        await PresencaVoluntario.create({
+            _id: idPresenca,
+            cpf_voluntario: cpf,
+            nome_voluntario: voluntario.nome,
+            data_presenca: hoje.dataInicio
+        });
+
+        return renderFormularioPresenca(res, {
+            tipo: 'sucesso',
+            titulo: 'Presenca registrada',
+            mensagem: `${voluntario.nome} foi registrado em ${hoje.dataExibicao}.`
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            return renderFormularioPresenca(res, {
+                tipo: 'alerta',
+                titulo: 'Presenca ja registrada',
+                mensagem: 'Este CPF ja possui presenca registrada para hoje.'
+            });
+        }
+
+        console.error('Erro ao registrar presenca de voluntario:', err);
+        return renderFormularioPresenca(res, {
+            tipo: 'erro',
+            titulo: 'Erro ao registrar',
+            mensagem: 'Nao foi possivel registrar a presenca agora.'
+        }, 500);
     }
 };
 

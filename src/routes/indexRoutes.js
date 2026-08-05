@@ -105,6 +105,8 @@ router.get('/atendimento/iniciar/:id', solicitacaoController.iniciarAtendimento)
 // --- ROTAS DE VOLUNTARIOS (Mediuns) --- // POST para salvar
 router.get('/cadastro_mediuns', (req, res) => res.render('cadastro_mediuns'));
 router.post('/medium/novo', voluntarioController.criarVoluntario);
+router.get('/voluntarios/presenca', voluntarioController.getFormularioPresenca);
+router.post('/voluntarios/presenca', voluntarioController.registrarPresenca);
 router.get('/voluntarios/disponibilidade', voluntarioController.getDisponibilidadeVoluntarios);
 router.get('/visualizar_voluntarios', voluntarioController.getVisualizarVoluntarios);
 router.get('/relatorios/relatorio-voluntarios', relatorioController.getRelatorioVoluntarios);
