@@ -69,9 +69,7 @@
     </div>
 </div>
 
-
     </div><br>
-        <input type="hidden" id="forceUpdate" name="forceUpdate" value="false">
         <button type="submit" class="btn-atender btn-success">Finalizar Cadastro do medium</button>
     </form>
 
@@ -114,7 +112,9 @@
                     cancelButtonText: 'Cancelar'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        document.getElementById('forceUpdate').value = 'true';
+                        document.querySelectorAll('input[name="forceUpdate"]').forEach(input => {
+                            input.value = 'true';
+                        });
                         form.requestSubmit(); // Reenvia o formulário com o flag de atualização
                     }
                 });
