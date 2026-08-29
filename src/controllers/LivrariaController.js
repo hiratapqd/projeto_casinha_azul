@@ -1,6 +1,25 @@
 const Livro = require('../models/Livro');
 const Venda = require('../models/Venda');
 
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+const PERIODOS_MOVIMENTACAO = [30, 60, 90, 180, 365];
+const FAIXAS_MOVIMENTACAO = [
+    { chave: 'd30', titulo: '0-30d', inicio: 0, fim: 30 },
+    { chave: 'd60', titulo: '31-60d', inicio: 30, fim: 60 },
+    { chave: 'd90', titulo: '61-90d', inicio: 60, fim: 90 },
+    { chave: 'd180', titulo: '91-180d', inicio: 90, fim: 180 },
+    { chave: 'd365', titulo: '181-365d', inicio: 180, fim: 365 }
+];
+
+const getDataCorte = (dataBase, dias) => new Date(dataBase.getTime() - (dias * UM_DIA_MS));
+
+const somarQuantidade = (vendas) => vendas.reduce((acc, v) => acc + (Number(v.quantidade) || 0), 0);
+
+const getDiasSemVenda = (hoje, ultimaVenda) => {
+    if (!ultimaVenda) return null;
+    return Math.floor((hoje.getTime() - ultimaVenda.getTime()) / UM_DIA_MS);
+};
+
 const getDataBrasilia = () => {
     const agora = new Date();
     return new Date(agora.getTime() - (3 * 60 * 60 * 1000));
@@ -59,12 +78,12 @@ exports.getEstoque = async (req, res) => {
         const hoje = new Date();
         const inicioDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
         
-        // Datas de corte para o Giro
-        const data90 = new Date(hoje.getTime() - (90 * 24 * 60 * 60 * 1000));
-        const data180 = new Date(hoje.getTime() - (180 * 24 * 60 * 60 * 1000));
-        const data365 = new Date(hoje.getTime() - (365 * 24 * 60 * 60 * 1000));
+        // Datas de corte para giro e reposicao
+        const data60 = getDataCorte(hoje, 60);
+        const data90 = getDataCorte(hoje, 90);
 
         let totalVendidoMes = 0;
+        let totalLivrosVendidos60Dias = 0;
         let contagemTopMes = {}; 
 
         const livrosComGiro = livros.map(livro => {
@@ -76,12 +95,14 @@ exports.getEstoque = async (req, res) => {
                     totalVendidoMes += v.valor_total || 0;
                     contagemTopMes[livro.titulo] = (contagemTopMes[livro.titulo] || 0) + v.quantidade;
                 }
+
+                if (v.data_venda >= data60) {
+                    totalLivrosVendidos60Dias += Number(v.quantidade) || 0;
+                }
             });
 
-            // 2. Cálculo para as Colunas de Giro (Histórico)
-            livro.vendas90 = vendasLivro.filter(v => v.data_venda >= data90).reduce((acc, v) => acc + v.quantidade, 0);
-            livro.vendas180 = vendasLivro.filter(v => v.data_venda >= data180).reduce((acc, v) => acc + v.quantidade, 0);
-            livro.vendas365 = vendasLivro.filter(v => v.data_venda >= data365).reduce((acc, v) => acc + v.quantidade, 0);
+            // 2. Calculo para reposicao baseado no giro acumulado de 90 dias
+            livro.vendas90 = somarQuantidade(vendasLivro.filter(v => v.data_venda >= data90));
             
             // 3. Alerta de Reposição (Estoque < Média mensal dos últimos 90 dias)
             livro.mediaMensal = (livro.vendas90 / 3);
@@ -100,12 +121,105 @@ exports.getEstoque = async (req, res) => {
         res.render('livraria/estoque', { 
             livros: livrosComGiro, 
             totalVendidoMes, 
+            totalLivrosVendidos60Dias,
             top5, 
             totalAlertas 
         });
     } catch (err) {
         console.error(err);
         res.status(500).send("Erro ao carregar estoque.");
+    }
+};
+
+exports.getMovimentacao = async (req, res) => {
+    try {
+        const livros = await Livro.find().sort({ titulo: 1 }).lean();
+        const vendasGerais = await Venda.find().lean();
+        const hoje = new Date();
+        const filtroSemVenda = PERIODOS_MOVIMENTACAO.includes(Number(req.query.semVenda))
+            ? Number(req.query.semVenda)
+            : null;
+
+        const cortes = PERIODOS_MOVIMENTACAO.reduce((acc, dias) => {
+            acc[`d${dias}`] = getDataCorte(hoje, dias);
+            return acc;
+        }, {});
+
+        const resumoAcumulado = PERIODOS_MOVIMENTACAO.reduce((acc, dias) => {
+            acc[`d${dias}`] = 0;
+            return acc;
+        }, {});
+
+        const resumoSemVenda = PERIODOS_MOVIMENTACAO.reduce((acc, dias) => {
+            acc[`d${dias}`] = 0;
+            return acc;
+        }, {});
+
+        const resumoFaixas = FAIXAS_MOVIMENTACAO.reduce((acc, faixa) => {
+            acc[faixa.chave] = 0;
+            return acc;
+        }, {});
+
+        const livrosMovimentacao = livros.map(livro => {
+            const vendasLivro = vendasGerais.filter(v => v.livro_id === livro._id);
+            const acumulado = {};
+            const faixas = {};
+
+            PERIODOS_MOVIMENTACAO.forEach(dias => {
+                const chave = `d${dias}`;
+                acumulado[chave] = somarQuantidade(vendasLivro.filter(v => v.data_venda >= cortes[chave]));
+                resumoAcumulado[chave] += acumulado[chave];
+
+                if (acumulado[chave] === 0) {
+                    resumoSemVenda[chave] += 1;
+                }
+            });
+
+            FAIXAS_MOVIMENTACAO.forEach(faixa => {
+                const dataFim = getDataCorte(hoje, faixa.fim);
+                const dataInicio = faixa.inicio === 0 ? null : getDataCorte(hoje, faixa.inicio);
+
+                const quantidadeFaixa = somarQuantidade(vendasLivro.filter(v => {
+                    const dentroDoLimiteInferior = v.data_venda >= dataFim;
+                    const antesDoLimiteSuperior = !dataInicio || v.data_venda < dataInicio;
+                    return dentroDoLimiteInferior && antesDoLimiteSuperior;
+                }));
+
+                faixas[faixa.chave] = quantidadeFaixa;
+                resumoFaixas[faixa.chave] += quantidadeFaixa;
+            });
+
+            const ultimaVenda = vendasLivro.reduce((ultima, venda) => {
+                if (!venda.data_venda) return ultima;
+                return !ultima || venda.data_venda > ultima ? venda.data_venda : ultima;
+            }, null);
+
+            return {
+                ...livro,
+                acumulado,
+                faixas,
+                ultimaVenda,
+                diasSemVenda: getDiasSemVenda(hoje, ultimaVenda)
+            };
+        });
+
+        const livrosFiltrados = filtroSemVenda
+            ? livrosMovimentacao.filter(livro => livro.acumulado[`d${filtroSemVenda}`] === 0)
+            : livrosMovimentacao;
+
+        res.render('livraria/movimentacao', {
+            livros: livrosFiltrados,
+            periodos: PERIODOS_MOVIMENTACAO,
+            faixas: FAIXAS_MOVIMENTACAO,
+            resumoAcumulado,
+            resumoFaixas,
+            resumoSemVenda,
+            filtroSemVenda,
+            totalLivros: livros.length
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Erro ao carregar movimentacao da livraria.");
     }
 };
 

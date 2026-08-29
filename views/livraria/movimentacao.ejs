@@ -1,0 +1,183 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/styles/styles.css">
+
+<div class="container">
+    <div class="hero">
+        <h1>Movimentacao da Livraria</h1>
+        <p>Analise vendas acumuladas, faixas de venda e livros sem movimento recente</p>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px; padding: 15px;">
+        <div style="display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 15px; color: #1277bb;"></i>
+                <input type="text" id="inputBusca" placeholder="Buscar por Titulo, Autor, Editora ou ISBN..."
+                    style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
+            </div>
+
+            <form method="get" action="/livraria/movimentacao" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0;">
+                <select name="semVenda" onchange="this.form.submit()"
+                    style="height: 45px; padding: 0 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+                    <option value="" <%= !filtroSemVenda ? 'selected' : '' %>>Todos os livros</option>
+                    <% periodos.forEach(dias => { %>
+                        <option value="<%= dias %>" <%= filtroSemVenda === dias ? 'selected' : '' %>>
+                            Sem venda nos ultimos <%= dias %> dias
+                        </option>
+                    <% }) %>
+                </select>
+
+                <% if (filtroSemVenda) { %>
+                    <a href="/livraria/movimentacao" class="muted" style="white-space: nowrap;">Limpar filtro</a>
+                <% } %>
+            </form>
+
+            <a href="/livraria/estoque" class="btn-atender" style="text-decoration: none; display: flex; align-items: center; gap: 8px; white-space: nowrap; height: 45px;">
+                <i class="fas fa-boxes"></i> Estoque
+            </a>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: #1277bb; font-size: 1.2rem;">Acumulado</h2>
+        <small style="color: #777;">Listando <%= livros.length %> de <%= totalLivros %> livros</small>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 25px;">
+        <% periodos.forEach(dias => { const chave = `d${dias}`; %>
+            <div class="card" style="border-top: 4px solid #1277bb; text-align: center; padding: 14px;">
+                <h3 style="color: #666; font-size: 0.85em; margin: 0;">ULTIMOS <%= dias %> DIAS</h3>
+                <p style="font-size: 1.8em; font-weight: bold; color: #1277bb; margin: 8px 0 2px;">
+                    <%= resumoAcumulado[chave] %>
+                </p>
+                <small style="color: #999;">unidades vendidas</small>
+            </div>
+        <% }) %>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+        <h2 style="margin: 0; color: #1277bb; font-size: 1.2rem;">Por faixa</h2>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 25px;">
+        <% faixas.forEach(faixa => { %>
+            <div class="card" style="border-top: 4px solid #28a745; text-align: center; padding: 14px;">
+                <h3 style="color: #666; font-size: 0.85em; margin: 0;"><%= faixa.titulo %></h3>
+                <p style="font-size: 1.8em; font-weight: bold; color: #28a745; margin: 8px 0 2px;">
+                    <%= resumoFaixas[faixa.chave] %>
+                </p>
+                <small style="color: #999;">unidades vendidas</small>
+            </div>
+        <% }) %>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+        <h2 style="margin: 0; color: #1277bb; font-size: 1.2rem;">Nao vendidos</h2>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 25px;">
+        <% periodos.forEach(dias => { const chave = `d${dias}`; const ativo = filtroSemVenda === dias; %>
+            <a href="/livraria/movimentacao?semVenda=<%= dias %>" class="card"
+                style="border-top: 4px solid <%= ativo ? '#ff4d4d' : '#f0ad4e' %>; text-align: center; padding: 14px; text-decoration: none; color: inherit; box-shadow: <%= ativo ? '0 0 0 2px rgba(255, 77, 77, 0.25)' : 'none' %>;">
+                <h3 style="color: #666; font-size: 0.85em; margin: 0;">SEM VENDA <%= dias %> DIAS</h3>
+                <p style="font-size: 1.8em; font-weight: bold; color: <%= ativo ? '#ff4d4d' : '#f0ad4e' %>; margin: 8px 0 2px;">
+                    <%= resumoSemVenda[chave] %>
+                </p>
+                <small style="color: #999;">livros</small>
+            </a>
+        <% }) %>
+    </div>
+
+    <div class="card" style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Livro</th>
+                    <th rowspan="2">Editora</th>
+                    <th rowspan="2">Estoque</th>
+                    <th rowspan="2">Ultima venda</th>
+                    <th colspan="<%= periodos.length %>" style="text-align: center;">Acumulado</th>
+                    <th colspan="<%= faixas.length %>" style="text-align: center;">Por faixa</th>
+                </tr>
+                <tr>
+                    <% periodos.forEach(dias => { %>
+                        <th><%= dias %>d</th>
+                    <% }) %>
+                    <% faixas.forEach(faixa => { %>
+                        <th><%= faixa.titulo %></th>
+                    <% }) %>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (!livros.length) { %>
+                    <tr>
+                        <td colspan="14" style="text-align: center; color: #777; padding: 25px;">
+                            Nenhum livro encontrado para o filtro selecionado.
+                        </td>
+                    </tr>
+                <% } %>
+
+                <% livros.forEach(livro => { %>
+                    <tr data-search="<%= [livro.titulo, livro.autor, livro.editora, livro._id].join(' ') %>">
+                        <td>
+                            <strong><%= livro.titulo %></strong><br>
+                            <small style="color:#999"><%= livro._id %></small>
+                        </td>
+                        <td><span class="badge-editora"><%= livro.editora || '---' %></span></td>
+                        <td>
+                            <span class="status-badge <%= livro.estoque_atual <= (livro.estoque_minimo || 2) ? 'alerta' : 'atendimento' %>">
+                                <%= livro.estoque_atual %> un
+                            </span>
+                        </td>
+                        <td>
+                            <% if (livro.ultimaVenda) { %>
+                                <%= livro.ultimaVenda.toLocaleDateString('pt-BR') %><br>
+                                <small style="color: #777;"><%= livro.diasSemVenda %> dias sem venda</small>
+                            <% } else { %>
+                                <span style="color: #999;">Nunca vendeu</span>
+                            <% } %>
+                        </td>
+
+                        <% periodos.forEach(dias => { const valor = livro.acumulado[`d${dias}`]; %>
+                            <td style="text-align: center; font-weight: <%= valor ? '700' : '400' %>; color: <%= valor ? '#1277bb' : '#999' %>;">
+                                <%= valor %>
+                            </td>
+                        <% }) %>
+
+                        <% faixas.forEach(faixa => { const valor = livro.faixas[faixa.chave]; %>
+                            <td style="text-align: center; font-weight: <%= valor ? '700' : '400' %>; color: <%= valor ? '#28a745' : '#999' %>;">
+                                <%= valor %>
+                            </td>
+                        <% }) %>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputBusca = document.getElementById('inputBusca');
+    if (!inputBusca) return;
+
+    function executarFiltro() {
+        const termo = inputBusca.value.toLowerCase().trim();
+        const termoSemPontos = termo.replace(/[\.\-\/]/g, "");
+        const linhas = document.querySelectorAll('table tbody tr[data-search]');
+
+        linhas.forEach(linha => {
+            const textoLinha = linha.dataset.search.toLowerCase();
+            const textoSemPontos = textoLinha.replace(/[\.\-\/]/g, "");
+            linha.style.display = textoLinha.includes(termo) || textoSemPontos.includes(termoSemPontos) ? "" : "none";
+        });
+    }
+
+    inputBusca.addEventListener('keyup', executarFiltro);
+    inputBusca.addEventListener('input', executarFiltro);
+    inputBusca.addEventListener('paste', () => setTimeout(executarFiltro, 100));
+    inputBusca.addEventListener('change', executarFiltro);
+});
+</script>
+
+<%- include('../partials/footer') %>

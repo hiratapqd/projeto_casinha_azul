@@ -136,6 +136,7 @@ router.get('/relatorios/apometria-inativos', relatorioController.getApometriaIna
 router.get('/livraria/cadastro', livrariaController.getCadastroLivro);
 router.post('/livraria/salvar', livrariaController.salvarLivro);
 router.get('/livraria/estoque', livrariaController.getEstoque);
+router.get('/livraria/movimentacao', livrariaController.getMovimentacao);
 router.post('/livraria/venda', livrariaController.registrarVenda);
 router.get('/livraria/editar/:id', livrariaController.getEditarLivro);
 router.post('/livraria/atualizar/:id', livrariaController.atualizarLivro);
